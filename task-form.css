@@ -1,0 +1,54 @@
+/* FR-02 uses the existing EduSerenity palette; these controls work without Tailwind. */
+[hidden] { display: none !important; }
+.demo-panel { background: #e0fae9; border: 1px solid #c0c9c1; border-radius: 12px; padding: 16px; color: #092016; }
+.demo-panel p + p { margin-top: 8px; }
+.demo-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin: 12px 0; }
+.demo-controls select { padding: 10px; max-width: 100%; border: 1px solid #707972; border-radius: 8px; background: white; }
+.demo-controls label { display: flex; gap: 8px; align-items: center; }
+.demo-caption { margin-bottom: 12px; color: #404943; }
+.demo-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.demo-stat { border: 1px solid #c0c9c1; border-radius: 12px; padding: 16px; }
+.demo-stat strong { display: block; font-size: 28px; color: #2b674a; margin-top: 12px; }
+#task-rows td { padding: 14px 16px; border-bottom: 1px solid #c0c9c1; overflow-wrap: anywhere; }
+#task-rows td:first-child { max-width: 360px; }
+#task-rows small { display: block; color: #404943; margin-top: 6px; white-space: pre-wrap; }
+#task-rows strong { display: block; }
+.task-badge { display: inline-block; background: #e0fae9; border-radius: 6px; padding: 4px 8px; }
+#task-notice { font-weight: 600; }
+#task-dialog { width: min(600px, calc(100% - 24px)); max-height: calc(100dvh - 24px); padding: 0; border: 1px solid #c0c9c1; border-radius: 16px; color: #092016; background: #fff; margin: auto; overflow-y: auto; }
+#task-dialog::backdrop { background: rgb(9 32 22 / .45); }
+body:has(#task-dialog[open]) { overflow: hidden; }
+#task-form { padding: 24px; font: 14px/1.5 'Be Vietnam Pro', sans-serif; }
+#task-form h2 { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+#task-dialog-note { color: #404943; margin-bottom: 18px; }
+#task-form fieldset { padding: 0; border: 0; min-width: 0; }
+.task-field { margin-bottom: 12px; }
+.task-field label { display: block; font-weight: 600; margin-bottom: 6px; }
+.task-field input, .task-field textarea, .task-field select { box-sizing: border-box; width: 100%; min-width: 0; min-height: 44px; padding: 10px 12px; border: 1px solid #707972; border-radius: 8px; background: white; color: #092016; font: inherit; }
+.task-field textarea { resize: vertical; }
+#task-form :is(input, textarea, select):focus-visible, #demo-user:focus-visible { outline: 3px solid #2b674a; outline-offset: 2px; }
+#task-form [aria-invalid="true"] { border-color: #ba1a1a; }
+#due-note { color: #404943; font-size: 12px; margin-top: 6px; }
+.field-error { color: #ba1a1a; margin-top: 4px; }
+.field-error:empty, .field-error p:empty { display: none; }
+.task-check { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.task-check input, #demo-failure { width: 18px; height: 18px; flex-shrink: 0; accent-color: #2b674a; }
+.task-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+.task-actions button { min-height: 44px; padding: 10px 18px; border-radius: 8px; background: #e0fae9; font: inherit; cursor: pointer; }
+.task-actions #task-submit { background: #2b674a; color: white; }
+button:disabled, fieldset:disabled { opacity: .65; cursor: wait; }
+@media (max-width: 767px) {
+  .demo-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  #task-form { padding: 16px; }
+  .task-actions { position: sticky; bottom: -16px; background: white; padding-block: 12px; }
+  .task-actions button { flex: 1; }
+  #task-rows td { padding: 0; }
+  #task-rows td:first-child { max-width: none; }
+}
+#task-rows td:nth-child(2) { white-space: nowrap; }
+#filter-all[aria-pressed], #filter-urgent[aria-pressed], #filter-overdue[aria-pressed], .state-btn[aria-pressed] { background: #fff; color: #404943; }
+#filter-all[aria-pressed="true"], #filter-urgent[aria-pressed="true"], #filter-overdue[aria-pressed="true"], .state-btn[aria-pressed="true"] { background: #2b674a; color: white; }
+@media (max-width: 767px) {
+  #task-rows td:nth-child(4)::before, #task-rows td:nth-child(5)::before { content: attr(data-label); display: block; margin-bottom: 8px; color: #404943; font-size: 12px; }
+  #task-rows td:nth-child(5) { grid-column: 1 / -1; text-align: left; }
+}
