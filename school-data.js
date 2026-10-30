@@ -65,7 +65,16 @@
   async get(id,taskId){if(id!==actor?.id) return null;const result=await api('?id='+encodeURIComponent(taskId));return task(result.task);},
   async create(id,input,requestId){
    const errors=validate(id,input);if(Object.keys(errors).length)throw Object.assign(new Error('Vui lòng kiểm tra thông tin.'),{errors});
-   const result=await api('',{input,requestId});const saved=task(result.task);
+   let result;
+   try { result=await api('',{input,requestId}); }
+   catch(error) {
+    if(error.status) throw error;
+    // A transport timeout can happen after commit; read back before reporting the outcome.
+    try { const found=await api('?id='+encodeURIComponent(requestId));result={task:found.task,notification:{status:'unknown'}}; }
+    catch { throw new Error('Chưa xác định kết quả lưu. Hãy tải lại danh sách hoặc thử lại với cùng yêu cầu.'); }
+   }
+   const saved=task(result.task);
+   saved.notificationStatus=result.notification?.status||'unknown';
    tasks=tasks.filter(t=>t.id!==saved.id);tasks.push(saved);return copy(saved);
   },
   async detail(id,taskId){

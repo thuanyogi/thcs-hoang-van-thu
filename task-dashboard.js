@@ -127,7 +127,11 @@
   $('page-previous').addEventListener('click', () => { page--; renderRows(tasks()); }); $('page-next').addEventListener('click', () => { page++; renderRows(tasks()); });
   document.querySelectorAll('[data-create-task]').forEach(button => button.addEventListener('click', () => {
     if (!SchoolData.actor || state !== 'data') return;
-    TaskForm.open({ actor: SchoolData.actor, store, setBusy(value) { document.dispatchEvent(new CustomEvent('school-form-busy', { detail: value })); }, onSaved(task) { render(); $('task-notice').textContent = `Đã lưu công việc “${task.title}” và đọc lại từ Supabase.`; } }, button);
+    TaskForm.open({ actor: SchoolData.actor, store, setBusy(value) { document.dispatchEvent(new CustomEvent('school-form-busy', { detail: value })); }, onSaved(task) {
+      render();
+      const notification = task.notificationStatus === 'sent' ? ' Đã gửi thông báo Telegram.' : task.notificationStatus === 'failed' ? ' Gửi Telegram chưa thành công; công việc vẫn được lưu.' : ' Chưa xác định kết quả gửi Telegram; công việc vẫn được lưu.';
+      $('task-notice').textContent = `Đã lưu công việc “${task.title}” và đọc lại từ Supabase.${notification}`;
+    } }, button);
   }));
   document.addEventListener('school-session', event => {
     const nextIdentity = SchoolData.actor?.id || null;

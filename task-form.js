@@ -60,6 +60,7 @@
       const task = await attempt.store.create(attempt.actor.id, input, requestId);
       const saved = await attempt.store.get(attempt.actor.id, task.id);
       if (!saved) throw new Error('Chưa đọc lại được công việc đã ghi. Vui lòng kiểm tra danh sách.');
+      saved.notificationStatus = task.notificationStatus;
       if (SchoolData.actor?.id !== attempt.actor.id || context !== attempt) return;
       attempt.onSaved(saved);
       setPending(false);

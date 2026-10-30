@@ -44,3 +44,14 @@ Bản công khai không chứa báo cáo nội bộ, backup, mapping tài khoả
 URL production: https://thcs-hoang-van-thu.vercel.app/. Đã xác minh URL gốc 200, URL cũ chuyển tiếp, Login/F5/Logout trên trình duyệt online. Kiểm thử API/DB/Storage thật đạt luồng báo cáo–trả lại–nộp lại–duyệt và quyền âm tính, giữ nguyên dữ liệu gốc. Không coi đây là nghiệm thu vận hành của nhà trường. Email xác nhận gửi tới hộp thư thật, thời gian hết hạn phiên tự nhiên và chính sách lưu/xóa tệp còn cần xác nhận.
 
 Migration bổ sung `return_business_conflicts_without_retry` dùng PT409 thay mã40001 cho xung đột nghiệp vụ để tránh PostgREST tự retry; không đổi quyền hoặc cấu trúc dữ liệu.
+
+
+## Thông báo Telegram khi có task mới
+
+Supabase `school-tasks` gọi `telegram-notify` sau khi RPC tạo task đã commit. Chỉ gửi mã task và link trang chính có yêu cầu đăng nhập vào chat quản lý cố định. Cấu hình `TELEGRAM_BOT_TOKEN` và `TELEGRAM_CHAT_ID` trong Supabase Edge Functions Secrets; không đưa giá trị vào frontend hoặc log. Mọi thành viên chat cần có quyền xem toàn bộ công việc được thông báo.
+
+Migration `20261030152000_add_telegram_task_notifications.sql` tạo trạng thái gửi cùng task; bảng RLS chỉ backend truy cập và RPC claim chỉ service_role gọi. `telegram-notify` kiểm email xác nhận, vai trò người giao và quyền task trước claim. Task cũ trước migration không được gửi. Endpoint test riêng chỉ BGH gọi.
+
+Gửi thành công, thất bại và chưa xác định được hiển thị riêng với kết quả lưu DB. Không rollback task khi Telegram lỗi. Claim được lưu trước khi gửi; không tự retry trạng thái đã claim. Crash hoặc mất mạng có thể để trạng thái pending/sending/unknown; đây là best-effort, chưa có worker đảm bảo giao tin hay xác nhận đã đọc. Không tạo lại task để thử gửi lại.
+
+Kiểm thử helper: `node --test tests/telegram-notify.test.cjs`. Kiểm thử thật `scripts/verify-telegram-live.cjs` chỉ chạy sau backup và phê duyệt dữ liệu thử; cần fixture riêng không công khai. Test này gửi Telegram thật và giữ một task tổng hợp. Triển khai hai function bằng Supabase CLI theo project đã kiểm tra; cập nhật frontend qua pipeline Vercel/GitHub hiện có. Rollback bằng cách triển khai lại school-tasks phiên bản trước, giữ trạng thái gửi để đối chiếu; không xóa task.

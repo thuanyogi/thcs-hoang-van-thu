@@ -154,6 +154,19 @@ Deno.serve(async req => {
    if (error) throw new ApiError(503,'Chưa tạo được liên kết tải lên. Hãy thử lại với cùng mã yêu cầu.');
    return json({...result,token:data.token,signedUrl:data.signedUrl,expiresIn:7200});
   }
+  if (action==='create') {
+   // The command has committed. Notification failures must never undo or mask the saved task.
+   let notification:any={status:'unknown'};
+   try {
+    const response=await fetch(url+'/functions/v1/telegram-notify',{
+     method:'POST',headers:{apikey:anon,Authorization:authorization,'Content-Type':'application/json'},
+     body:JSON.stringify({taskId:result.task.id}),signal:AbortSignal.timeout(15000)
+    });
+    const value=await response.json();
+    if(response.ok && ['sent','failed','unknown','not_queued'].includes(value.status)) notification={status:value.status};
+   } catch { /* Keep the committed result even when notification delivery is uncertain. */ }
+   return json({...result,notification});
+  }
   return json(result);
  } catch (error) {
   if (error instanceof ApiError) return json({error:error.message,...(error.errors?{errors:error.errors}:{})},error.status);

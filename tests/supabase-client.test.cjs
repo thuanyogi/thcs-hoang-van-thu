@@ -34,3 +34,16 @@ test('đăng xuất hủy request đăng nhập đang chờ và không khôi ph�
  await c.data.signOut();await rejection;
  assert.equal(aborted,true);assert.equal(c.data.user,null);assert.equal(c.values.size,0);
 });
+test('create timeout reads committed task back and preserves unknown notification outcome',async()=>{
+ const profile={id:'A',display_name:'BGH',role:'bgh',department_id:null},teacher={id:'T',display_name:'Teacher',role:'teacher',department_id:null};
+ const row={id:'request',title:'Task',description:'Nội dung',assigner_id:'A',assignee_id:'T',scope:'school',due_at:'2026-11-05T16:59:59Z',created_at:'2026-10-30T10:00:00Z',status:'todo'};
+ const c=client(async(url,options)=>{
+  if(url.includes('/auth/'))return {ok:true,json:async()=>({id:'A'})};
+  if(options.method==='POST')throw Error('connection lost after commit');
+  return {ok:true,json:async()=>url.includes('?id=')?{task:row}:{actor:profile,users:[profile,teacher],departments:[],names:[],tasks:[]}};
+ });
+ c.values.set('school-supabase-session',JSON.stringify({access_token:'test',refresh_token:'test',expires_at:Date.now()/1000+3600,user:{id:'A'}}));
+ await c.data.initialize();
+ const saved=await c.data.store.create('A',{title:'Task',description:'Nội dung',assigneeId:'T',scope:'school',dueDate:'2026-11-05'},'request');
+ assert.equal(saved.id,'request');assert.equal(saved.notificationStatus,'unknown');
+});
