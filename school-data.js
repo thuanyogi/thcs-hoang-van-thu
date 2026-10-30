@@ -122,6 +122,16 @@
   await refresh();return true;
  }
  root.SchoolData={users,store,validate,canCreate,get actor(){return actor;},get user(){return session?.user||null;},initialize,
+  async askTasks(question){
+   if(!actor)throw new Error('Vui lòng đăng nhập và tải dữ liệu trước khi hỏi.');
+   const version=generation,token=await access();
+   const response=await network(URL+'/functions/v1/task-chat',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({question})});
+   const value=await response.json().catch(()=>({}));
+   if(version!==generation)throw new Error('Phiên đăng nhập đã thay đổi.');
+   if(!response.ok){if(response.status===401){clear();notify('signed-out');}throw Object.assign(new Error(value.error||'Trợ lý tạm thời chưa phản hồi.'),{status:response.status});}
+   if(typeof value.answer!=='string'||!Array.isArray(value.sources))throw new Error('Câu trả lời chưa hợp lệ. Vui lòng thử lại.');
+   return value;
+  },
   async signIn(email,password){clear();notify('signed-out');const version=generation;const value=await auth('token?grant_type=password',{email,password});if(version!==generation)throw new Error('Phiên đăng nhập đã thay đổi.');persist(value);notify('signed-in');},
   async signUp(email,password){const value=await auth('signup?redirect_to='+encodeURIComponent(location.origin+location.pathname),{email,password});if(value.access_token)throw new Error('Đăng ký chưa được chấp nhận: cần quản trị viên kiểm tra Confirm Email đang bật.');return value;},
   async sendLoginLink(email){await auth('otp?redirect_to='+encodeURIComponent(location.origin+location.pathname),{email,create_user:false});},

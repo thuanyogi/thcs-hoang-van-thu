@@ -55,3 +55,15 @@ Migration `20261030152000_add_telegram_task_notifications.sql` tạo trạng th�
 Gửi thành công, thất bại và chưa xác định được hiển thị riêng với kết quả lưu DB. Không rollback task khi Telegram lỗi. Claim được lưu trước khi gửi; không tự retry trạng thái đã claim. Crash hoặc mất mạng có thể để trạng thái pending/sending/unknown; đây là best-effort, chưa có worker đảm bảo giao tin hay xác nhận đã đọc. Không tạo lại task để thử gửi lại.
 
 Kiểm thử helper: `node --test tests/telegram-notify.test.cjs`. Kiểm thử thật `scripts/verify-telegram-live.cjs` chỉ chạy sau backup và phê duyệt dữ liệu thử; cần fixture riêng không công khai. Test này gửi Telegram thật và giữ một task tổng hợp. Triển khai hai function bằng Supabase CLI theo project đã kiểm tra; cập nhật frontend qua pipeline Vercel/GitHub hiện có. Rollback bằng cách triển khai lại school-tasks phiên bản trước, giữ trạng thái gửi để đối chiếu; không xóa task.
+
+## Chatbot hỏi đáp công việc
+
+Nút “Hỏi về công việc” xuất hiện sau khi đăng nhập và tải dữ liệu. Chatbot chỉ đọc, trả lời tiếng Việt, kèm nút mở công việc nguồn và số liệu backend để đối chiếu. Mỗi câu hỏi được xử lý độc lập; hội thoại trên trang bị xóa khi đăng xuất/đổi tài khoản, không lưu vào DB.
+
+Edge Function `task-chat` xác minh email/profile và đọc task bằng JWT người hỏi qua RLS. Không dùng service-role, không cho Gemini gọi công cụ ghi hay truy vấn SQL. Chỉ gửi câu hỏi, metadata và mô tả giới hạn của task nguồn tới Google; chưa gửi báo cáo, tệp minh chứng hay email. Key `GEMINI_API_KEY` nằm trong Supabase Edge Functions Secrets. `GEMINI_MODEL` là cấu hình tùy chọn, mặc định `gemini-2.5-flash`.
+
+Giới hạn: câu hỏi 1.000 ký tự, đọc tối đa 1.200 metadata task, gửi tối đa 15 task với mô tả tối đa 1.600 ký tự/task, đầu ra tối đa 1.200 token. Giao diện báo khi phạm vi dữ liệu hoặc nguồn bị giới hạn. Các số đếm được tính trên backend trong phạm vi được đọc, mốc sắp đến hạn là 7 ngày tiếp theo. AI vẫn có thể diễn giải sai, cần mở nguồn đối chiếu.
+
+Giới hạn 6 lượt/phút và một request đồng thời/người dùng áp dụng trong từng Edge isolate; không phải quota phân tán hoặc trần chi phí toàn hệ thống. Cấu hình quota/billing trong project Google để kiểm soát ngân sách. Key sai, hết quota, timeout hoặc câu trả lời có nguồn không hợp lệ đều trả lỗi riêng, không ảnh hưởng việc lưu/xử lý task. Không tự retry Gemini và không log câu hỏi/câu trả lời trong code ứng dụng.
+
+Kiểm thử: `npm test`; `node scripts/verify-task-chat-live.cjs` dùng fixture riêng được phép và gửi dữ liệu thật tới Gemini, không ghi DB. `node tests/task-chat-browser.cjs` cần Playwright/Chrome và local server; đặt `CHAT_TEST_URL` để kiểm bản online. Deploy bằng `supabase functions deploy task-chat --project-ref <project-ref> --no-verify-jwt`; handler tự xác minh JWT qua Auth và RLS. Frontend theo pipeline GitHub/Vercel. Không cần migration. Rollback bằng phiên bản frontend trước hoặc tắt function; không đổi task.

@@ -47,3 +47,13 @@ test('create timeout reads committed task back and preserves unknown notificatio
  const saved=await c.data.store.create('A',{title:'Task',description:'Nội dung',assigneeId:'T',scope:'school',dueDate:'2026-11-05'},'request');
  assert.equal(saved.id,'request');assert.equal(saved.notificationStatus,'unknown');
 });
+test('chat response from an old session is rejected after logout',async()=>{
+ const profile={id:'A',display_name:'A',role:'teacher',department_id:null};
+ let release;const delayed=new Promise(resolve=>release=resolve);
+ const c=client(async url=>url.endsWith('/task-chat')?delayed:url.includes('/functions/')?{ok:true,json:async()=>({actor:profile,users:[profile],departments:[],names:[],tasks:[]})}:{ok:true,json:async()=>({id:'A'})});
+ c.values.set('school-supabase-session',JSON.stringify({access_token:'test',refresh_token:'test',expires_at:Date.now()/1000+3600,user:{id:'A'}}));
+ await c.data.initialize();const question=c.data.askTasks('Tôi có việc gì?');
+ await new Promise(resolve=>setImmediate(resolve));await c.data.signOut();
+ release({ok:true,json:async()=>({answer:'Không được hiện',sources:[]})});
+ await assert.rejects(question,/Phiên đăng nhập đã thay đổi/);
+});
