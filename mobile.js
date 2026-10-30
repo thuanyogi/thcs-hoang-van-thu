@@ -1,38 +1,34 @@
-const menuToggle = document.getElementById('mobile-menu-toggle');
-const navigation = document.getElementById('school-navigation');
-const backdrop = document.getElementById('mobile-menu-backdrop');
-function setMenuOpen(open) {
-  document.body.classList.toggle('menu-open', open);
-  menuToggle.setAttribute('aria-expanded', String(open));
-  backdrop.hidden = !open;
-  document.querySelector('body > .pl-64').inert = open;
-  if (open) { navigation.setAttribute('role', 'dialog'); navigation.setAttribute('aria-modal', 'true'); }
-  else { navigation.removeAttribute('role'); navigation.removeAttribute('aria-modal'); }
-  // Focus after the drawer and inherited visibility have settled.
-  if (open) setTimeout(() => {
-    if (document.body.classList.contains('menu-open')) navigation.querySelector('a').focus();
-  }, 200);
-  else menuToggle.focus();
-}
-menuToggle.addEventListener('click', () => setMenuOpen(!document.body.classList.contains('menu-open')));
-backdrop.addEventListener('click', () => setMenuOpen(false));
-document.addEventListener('keydown', event => {
-  if (!document.body.classList.contains('menu-open')) return;
-  if (event.key === 'Escape') setMenuOpen(false);
-  if (event.key === 'Tab') {
-    const links = [...navigation.querySelectorAll('a, button')];
-    const first = links[0], last = links[links.length - 1];
-    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+(function () {
+  'use strict';
+  const toggle = document.getElementById('mobile-menu-toggle');
+  const nav = document.getElementById('school-navigation');
+  const backdrop = document.getElementById('mobile-menu-backdrop');
+  const content = document.querySelector('.app-content');
+  function close(restore = true) {
+    const wasOpen = document.body.classList.contains('menu-open');
+    document.body.classList.remove('menu-open');
+    toggle.setAttribute('aria-expanded', 'false');
+    backdrop.hidden = true; content.inert = false;
+    nav.removeAttribute('role'); nav.removeAttribute('aria-modal');
+    if (wasOpen && restore) toggle.focus();
   }
-});
-navigation.addEventListener('click', event => {
-  if (event.target.closest('a') && document.body.classList.contains('menu-open')) setMenuOpen(false);
-});
-matchMedia('(min-width: 1280px)').addEventListener('change', event => {
-  if (event.matches && document.body.classList.contains('menu-open')) setMenuOpen(false);
-});
-document.querySelectorAll('.task-row').forEach(row => {
-  row.cells[1].dataset.label = 'Hạn chót';
-  row.cells[2].dataset.label = 'Mức ưu tiên';
-});
+  toggle.addEventListener('click', () => {
+    if (document.body.classList.contains('menu-open')) { close(); return; }
+    document.body.classList.add('menu-open'); toggle.setAttribute('aria-expanded', 'true');
+    backdrop.hidden = false; content.inert = true;
+    nav.setAttribute('role', 'dialog'); nav.setAttribute('aria-modal', 'true');
+    nav.querySelector('a').focus();
+  });
+  backdrop.addEventListener('click', () => close());
+  nav.addEventListener('click', event => { if (event.target.closest('a')) close(false); });
+  document.addEventListener('keydown', event => {
+    if (!document.body.classList.contains('menu-open')) return;
+    if (event.key === 'Escape') close();
+    if (event.key !== 'Tab') return;
+    const links = [...nav.querySelectorAll('a,button')];
+    if (event.shiftKey && document.activeElement === links[0]) { event.preventDefault(); links.at(-1).focus(); }
+    else if (!event.shiftKey && document.activeElement === links.at(-1)) { event.preventDefault(); links[0].focus(); }
+  });
+  matchMedia('(min-width:1051px)').addEventListener('change', event => { if (event.matches) close(false); });
+  document.addEventListener('school-session', event => { if (event.detail.state !== 'data') close(false); });
+})();

@@ -19,3 +19,6 @@ scripts/verify-import.cjs
 tests/supabase-live.cjs
 tests/supabase-role-http.cjs
 tests/supabase-permissions.sql
+
+dist/
+.vercel/

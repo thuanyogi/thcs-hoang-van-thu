@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
-function client(fetch){const values=new Map(),events={};const context={AbortSignal,URLSearchParams,Intl,Date,JSON,Set,Promise,console,fetch,location:{hash:'',pathname:'/code.html',search:'',origin:'http://localhost:3000'},history:{replaceState(){}},localStorage:{getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)},addEventListener:(k,fn)=>events[k]=fn};context.globalThis=context;vm.runInNewContext(fs.readFileSync('school-data.js','utf8'),context);return {data:context.SchoolData,values,events};}
+function client(fetch){const values=new Map(),events={};const context={AbortSignal,AbortController,URLSearchParams,Intl,Date,JSON,Set,Promise,console,fetch,location:{hash:'',pathname:'/code.html',search:'',origin:'http://localhost:3000'},history:{replaceState(){}},localStorage:{getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)},addEventListener:(k,fn)=>events[k]=fn};context.globalThis=context;vm.runInNewContext(fs.readFileSync('school-data.js','utf8'),context);return {data:context.SchoolData,values,events};}
 test('storage event không xóa phiên đăng nhập do tab khác vừa ghi',()=>{const c=client();const value=JSON.stringify({access_token:'test',refresh_token:'test',expires_at:Date.now()/1000+300});c.values.set('school-supabase-session',value);c.events.storage({key:'school-supabase-session',newValue:value});assert.equal(c.values.get('school-supabase-session'),value);});
 test('refresh trả muộn không khôi phục phiên sau đăng xuất',async()=>{let release;const waiting=new Promise(resolve=>release=resolve);const c=client(async url=>url.includes('grant_type=refresh_token')?waiting:{ok:true,json:async()=>({})});c.values.set('school-supabase-session',JSON.stringify({access_token:'test',refresh_token:'test',expires_at:0}));const initializing=c.data.initialize();const rejected=assert.rejects(initializing,/Phiên đăng nhập đã thay đổi/);await c.data.signOut();release({ok:true,json:async()=>({access_token:'late',refresh_token:'late',expires_in:3600})});await rejected;assert.equal(c.data.actor,null);assert.equal(c.values.has('school-supabase-session'),false);});
 test('server validator kiểm quyền, tổ, ngày và boolean độc lập với client',async()=>{const {validateTask}=await import('../supabase/functions/school-tasks/validation.js');const actor={role:'department_head',department_id:'A'},recipient={role:'teacher',department_id:'A'};const valid={title:'Task',description:'Nội dung',assigneeId:'teacher',scope:'department',dueDate:'2026-10-25',requiresApproval:true,requiresEvidence:false};assert.deepEqual(validateTask(actor,recipient,valid),{});assert.ok(validateTask({...actor,role:'teacher'},recipient,valid).permission);assert.ok(validateTask(actor,{...recipient,department_id:'B'},valid).assigneeId);assert.ok(validateTask(actor,recipient,{...valid,dueDate:'2026-02-30'}).dueDate);assert.ok(validateTask(actor,recipient,{...valid,requiresEvidence:'false'}).flags);});
@@ -8,3 +8,29 @@ test('signup yêu cầu xác nhận và không lưu phiên hay gọi dữ liệu
 test('signup không nhận phiên nếu máy chủ tắt xác nhận email',async()=>{const c=client(async()=>({ok:true,json:async()=>({access_token:'test',refresh_token:'test'})}));await assert.rejects(c.data.signUp('a@example.test','example-only'),/Confirm Email/);assert.equal(c.values.size,0);});
 test('login giữ danh tính dù chưa có quyền dữ liệu; F5 khôi phục và logout xóa phiên',async()=>{const identity={email:'a@example.test'};const c=client(async url=>url.includes('/functions/')?{ok:false,status:403,json:async()=>({error:'Chưa được cấp quyền'})}:{ok:true,json:async()=>url.endsWith('/user')?identity:{access_token:'test',refresh_token:'test',expires_in:3600,user:identity}});await c.data.signIn('a@example.test','example-only');assert.equal(c.data.user.email,identity.email);await assert.rejects(c.data.initialize(),/Chưa được cấp quyền/);assert.equal(c.data.user.email,identity.email);assert.equal(c.data.actor,null);await c.data.signOut();assert.equal(c.data.user,null);assert.equal(c.values.size,0);});
 test('phiên bị thu hồi được xóa khi xác thực lại',async()=>{const c=client(async()=>({ok:false,status:401,json:async()=>({})}));c.values.set('school-supabase-session',JSON.stringify({access_token:'test',refresh_token:'test',expires_at:Date.now()/1000+3600,user:{email:'a@example.test'}}));await assert.rejects(c.data.initialize());assert.equal(c.data.user,null);assert.equal(c.values.size,0);});
+test('đổi tài khoản xóa cache cũ trước khi đăng nhập mới hoàn tất',async()=>{
+ const profile={id:'A',display_name:'A',role:'teacher',department_id:'D'};
+ let waitLogin;const delayed=new Promise(resolve=>waitLogin=resolve);
+ const c=client(async url=>url.includes('grant_type=password')?delayed:url.includes('/functions/')?{ok:true,json:async()=>({actor:profile,departments:[{id:'D',name:'Tổ'}],users:[profile],names:[],tasks:[]})}:{ok:true,json:async()=>({id:'A',email:'a@example.test'})});
+ c.values.set('school-supabase-session',JSON.stringify({access_token:'test',refresh_token:'test',expires_at:Date.now()/1000+3600,user:{id:'A',email:'a@example.test'}}));
+ await c.data.initialize();assert.equal(c.data.actor.id,'A');
+ const next=c.data.signIn('b@example.test','test-only');
+ assert.equal(c.data.actor,null);assert.equal(c.data.users.length,0);assert.equal(c.values.size,0);
+ waitLogin({ok:true,json:async()=>({access_token:'test-b',refresh_token:'test-b',expires_in:3600,user:{id:'B',email:'b@example.test'}})});
+ await next;assert.equal(c.data.user.id,'B');assert.equal(c.data.actor,null);
+});
+test('mất mạng khi refresh không xóa refresh token còn có thể thử lại',async()=>{
+ const c=client(async()=>{throw new Error('offline');});
+ c.values.set('school-supabase-session',JSON.stringify({access_token:'test',refresh_token:'test',expires_at:0,user:{id:'A'}}));
+ await assert.rejects(c.data.initialize(),/Không kết nối/);assert.equal(c.values.size,1);assert.equal(c.data.user.id,'A');
+});
+test('đăng xuất hủy request đăng nhập đang chờ và không khôi phục phiên',async()=>{
+ let aborted=false;
+ const c=client(async(url,options)=>new Promise((resolve,reject)=>{
+  options.signal.addEventListener('abort',()=>{aborted=true;reject(new Error('aborted'));},{once:true});
+ }));
+ const login=c.data.signIn('a@example.test','test-only');
+ const rejection=assert.rejects(login,/Phiên đăng nhập đã thay đổi/);
+ await c.data.signOut();await rejection;
+ assert.equal(aborted,true);assert.equal(c.data.user,null);assert.equal(c.values.size,0);
+});

@@ -65,18 +65,20 @@
       setPending(false);
       close();
     } catch (error) {
-      showErrors(error.errors || { save: error.message || 'Chưa lưu được công việc. Vui lòng thử lại.' });
+      if (context === attempt) showErrors(error.errors || { save: error.message || 'Chưa lưu được công việc. Vui lòng thử lại.' });
     } finally {
-      setPending(false);
-      attempt.setBusy(false);
+      if (context === attempt) { setPending(false); attempt.setBusy(false); }
     }
   });
   document.addEventListener('school-session', event => {
-    if (event.detail.state !== 'signed-out') return;
+    if (event.detail.state === 'data' && (!context || SchoolData.actor?.id === context.actor.id)) return;
+    const previous = context;
     context = null;
+    setPending(false);
     form.reset();
     showErrors();
     dialog.close();
+    previous?.setBusy(false);
   });
   window.TaskForm = {
     open(options, trigger) {

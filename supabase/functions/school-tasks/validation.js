@@ -1,3 +1,4 @@
+/** @returns {Record<string,string>} */
 export function validateTask(actor, recipient, input) {
  const errors = {};
  if (!actor || !['bgh','department_head'].includes(actor.role)) return { permission:'Bạn không có quyền giao công việc.' };
