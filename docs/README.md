@@ -58,7 +58,7 @@ Kiểm thử helper: `node --test tests/telegram-notify.test.cjs`. Kiểm thử 
 
 ## Chatbot hỏi đáp công việc
 
-Nút “Hỏi về công việc” xuất hiện sau khi đăng nhập và tải dữ liệu. Chatbot chỉ đọc, trả lời tiếng Việt, kèm nút mở công việc nguồn và số liệu backend để đối chiếu. Mỗi câu hỏi được xử lý độc lập; hội thoại trên trang bị xóa khi đăng xuất/đổi tài khoản, không lưu vào DB.
+Nút “Hỏi về công việc” xuất hiện sau khi đăng nhập và tải dữ liệu. Bấm nút thì khung hỏi đáp mở ngay tại góc dưới phải, cùng vị trí nút, không phải hộp thoại giữa màn hình. Trang danh sách vẫn xem được; Escape hoặc nút đóng thì thu khung. Chatbot chỉ đọc, trả lời tiếng Việt, kèm nút mở công việc nguồn và số liệu backend để đối chiếu. Mỗi câu hỏi được xử lý độc lập; hội thoại trên trang bị xóa khi đăng xuất/đổi tài khoản, không lưu vào DB.
 
 Edge Function `task-chat` xác minh email/profile và đọc task bằng JWT người hỏi qua RLS. Không dùng service-role, không cho Gemini gọi công cụ ghi hay truy vấn SQL. Chỉ gửi câu hỏi, metadata và mô tả giới hạn của task nguồn tới Google; chưa gửi báo cáo, tệp minh chứng hay email. Key `GEMINI_API_KEY` nằm trong Supabase Edge Functions Secrets. `GEMINI_MODEL` là cấu hình tùy chọn, mặc định `gemini-2.5-flash`.
 

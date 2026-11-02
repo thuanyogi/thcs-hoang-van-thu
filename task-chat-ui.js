@@ -3,9 +3,11 @@
   const launcher = document.createElement('button');
   launcher.id = 'task-chat-launcher'; launcher.type = 'button'; launcher.hidden = true;
   launcher.textContent = 'Hỏi về công việc'; launcher.setAttribute('aria-haspopup', 'dialog');
+  launcher.setAttribute('aria-expanded', 'false');
   launcher.setAttribute('aria-controls', 'task-chat-dialog');
-  const dialog = document.createElement('dialog');
-  dialog.id = 'task-chat-dialog'; dialog.setAttribute('aria-labelledby', 'task-chat-title');
+  const panel = document.createElement('div');
+  panel.id = 'task-chat-dialog'; panel.hidden = true; panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-modal', 'false'); panel.setAttribute('aria-labelledby', 'task-chat-title');
   function node(tag, content, className) {
     const element = document.createElement(tag); element.textContent = content;
     if (className) element.className = className;
@@ -16,7 +18,7 @@
   const close = node('button', '×', 'chat-close'); close.type = 'button'; close.setAttribute('aria-label', 'Đóng hộp hỏi công việc');
   header.append(title, close);
   const intro = node('p', 'Hỏi về công việc trong phạm vi bạn được xem. Câu trả lời AI có thể sai; hãy mở công việc nguồn để kiểm tra.', 'chat-intro');
-  intro.id = 'task-chat-note'; dialog.setAttribute('aria-describedby', intro.id);
+  intro.id = 'task-chat-note'; panel.setAttribute('aria-describedby', intro.id);
   const examples = node('div', '', 'chat-examples'); examples.setAttribute('aria-label', 'Câu hỏi gợi ý');
   const transcript = node('div', '', 'chat-transcript'); transcript.setAttribute('role', 'log');
   transcript.setAttribute('aria-label', 'Cuộc hỏi đáp'); transcript.setAttribute('aria-live', 'polite');
@@ -26,8 +28,8 @@
   input.maxLength = 1000; input.required = true; input.placeholder = 'Ví dụ: Những công việc nào đang quá hạn?';
   const send = node('button', 'Gửi câu hỏi', 'chat-send'); send.type = 'submit';
   const status = node('p', '', 'chat-status'); status.setAttribute('role', 'status');
-  form.append(label, input, send, status); dialog.append(header, intro, examples, transcript, form);
-  document.body.append(launcher, dialog);
+  form.append(label, input, send, status); panel.append(header, intro, examples, transcript, form);
+  document.body.append(launcher, panel);
   let identity = null, epoch = 0, busy = false, ready = false, pendingRow = null;
   function controls() {
     send.disabled = input.disabled = busy || !ready;
@@ -35,10 +37,27 @@
     form.setAttribute('aria-busy', String(busy));
   }
   function scroll() { transcript.scrollTop = transcript.scrollHeight; }
-  function closeChat() { if (dialog.open) dialog.close(); }
-  launcher.addEventListener('click', () => { if (ready) { dialog.showModal(); input.focus(); } });
+  function chatOpen() { return !panel.hidden; }
+  function closeChat() {
+    const wasOpen = chatOpen();
+    panel.hidden = true;
+    launcher.setAttribute('aria-expanded', 'false');
+    if (wasOpen && !launcher.hidden) launcher.focus();
+  }
+  function openChat() {
+    if (!ready || chatOpen()) return;
+    panel.hidden = false;
+    launcher.setAttribute('aria-expanded', 'true');
+    input.focus();
+  }
+  launcher.addEventListener('click', openChat);
   close.addEventListener('click', closeChat);
-  dialog.addEventListener('close', () => { if (!launcher.hidden) launcher.focus(); });
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !chatOpen()) return;
+    if (document.querySelector('dialog[open]')) return;
+    event.preventDefault();
+    closeChat();
+  });
   for (const question of ['Những công việc nào đang quá hạn?', 'Công việc nào sắp đến hạn?', 'Những công việc nào đang chờ xác nhận?']) {
     const button = node('button', question); button.type = 'button';
     button.addEventListener('click', () => { input.value = question; input.focus(); }); examples.append(button);
