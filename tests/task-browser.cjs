@@ -11,11 +11,12 @@ const assert = require('node:assert/strict');
   await page.waitForFunction(() => document.body.dataset.session === 'signed-out');
   assert.equal(await page.locator('#school-app').isVisible(), false);
   assert.equal(await page.locator('#auth-email').inputValue(), '');
-  await page.locator('[data-auth-mode="signup"]').click();
-  assert.equal(await page.locator('#auth-sign-up').isVisible(), true);
-  assert.match(await page.locator('#auth-description').textContent(), /Xác nhận email/);
+  assert.equal(await page.locator('[data-auth-mode="signup"]').count(), 0);
   await page.locator('[data-auth-mode="link"]').click();
+  assert.match(await page.locator('#auth-heading').textContent(), /Quên mật khẩu/);
+  assert.match(await page.locator('#auth-description').textContent(), /không tạo tài khoản mới/);
   assert.equal(await page.locator('#auth-password').isVisible(), false);
+  assert.equal(await page.locator('#auth-sign-up').isVisible(), false);
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => document.body.dataset.session === 'signed-out');
   for (const width of [320, 375, 768, 1440]) {

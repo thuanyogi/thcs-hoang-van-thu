@@ -27,13 +27,13 @@ Vercel chỉ chứa frontend. Edge Function và DB Supabase được triển kha
 
 ## Danh tính và quyền
 
-Đăng nhập bằng tài khoản Supabase đã được xác nhận email. Đăng ký yêu cầu xác nhận email; tài khoản mới chưa có profile/role sẽ không truy cập được dữ liệu nội bộ. Đăng xuất xóa phiên và dữ liệu tạm trên client.
+Đăng nhập bằng tài khoản Supabase đã được xác nhận email. Màn hình chỉ có Đăng nhập và Quên mật khẩu. Quên mật khẩu gửi liên kết cho tài khoản đã có, không tạo tài khoản mới và không tự cấp vai trò. Đăng xuất xóa phiên và dữ liệu tạm trên client.
 
 Mã nguồn frontend chứa cấu hình project và publishable key công khai, không chứa khóa quản trị. Dùng project Supabase riêng khi tái sử dụng; sửa cấu hình trong school-data.js. Không dùng service-role key trong trình duyệt.
 
 Migration nền nằm trong supabase/migrations; source handler nằm trong supabase/functions/school-tasks. Không chạy migration trên database hiện hữu mà chưa kiểm tra, sao lưu và duyệt tác động. Source được chia sẻ không chứng minh thay đổi đã deploy. Đường ghi nghiệp vụ dùng RPC SECURITY DEFINER hẹp, lấy danh tính từ auth.uid() và kiểm profile/quyền/trạng thái trong PostgreSQL; client không được INSERT/UPDATE bảng trực tiếp. Đọc dữ liệu và tải tệp thực thi SELECT RLS.
 
-Source có Dashboard tháng, quá hạn, tìm/lọc/phân trang; chi tiết công việc; bắt đầu thực hiện; báo cáo kèm minh chứng; duyệt/trả lại có lý do và hạn mới; lịch sử. Gói SQL và Edge Function đã triển khai ngày 30/10/2026 trên project hiện tại; khi tái sử dụng cần áp dụng các migration lên project riêng sau kiểm tra và backup. Không hiển thị thành công nếu request hoặc read-back thất bại.
+Source có Dashboard tháng, quá hạn, tìm/lọc/phân trang; chi tiết công việc; bắt đầu thực hiện rồi mới nhập báo cáo; báo cáo kèm minh chứng; duyệt/trả lại có lý do và hạn mới; lịch sử. Minh chứng nhận DOC, DOCX, XLS, XLSX, PPT, PPTX, PDF, JPG, JPEG, PNG, HEIC và HEIF. Tệp không khai loại MIME vẫn được nhận khi đuôi hợp lệ. Ảnh HEIC cần migration `20261102100000_accept_phone_photo_evidence.sql` trên database trước khi nộp được. Gói SQL và Edge Function đã triển khai ngày 30/10/2026 trên project hiện tại; khi tái sử dụng cần áp dụng các migration lên project riêng sau kiểm tra và backup. Không hiển thị thành công nếu request hoặc read-back thất bại.
 
 Quy trình quản trị cấp/khóa tài khoản chưa được chốt, không cho người đăng ký tự chọn vai trò. Dữ liệu hiện có thuộc môi trường minh họa; không đưa dữ liệu học sinh thật vào thử nghiệm.
 

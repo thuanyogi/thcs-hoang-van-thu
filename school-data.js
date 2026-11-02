@@ -9,11 +9,18 @@
  const copy=x=>JSON.parse(JSON.stringify(x));
  function clear(remove=true){generation++;for(const request of requests)request.abort();requests.clear();session=null;actor=null;tasks=[];users.splice(0);departments=[];if(remove)localStorage.removeItem(SESSION_KEY);}
  function persist(value){session={...value,expires_at:value.expires_at||Math.floor(Date.now()/1000)+value.expires_in};localStorage.setItem(SESSION_KEY,JSON.stringify(session));}
- function network(url,options){
+ function network(url,options,timeoutMs=25000){
   const controller=new AbortController();requests.add(controller);
-  return fetch(url,{...options,signal:AbortSignal.any([controller.signal,AbortSignal.timeout(25000)])})
-   .catch(()=>{throw new Error(controller.signal.aborted?'Phiên đăng nhập đã thay đổi.':'Không kết nối được Supabase. Hãy kiểm tra mạng rồi thử lại.');})
+  return fetch(url,{...options,signal:AbortSignal.any([controller.signal,AbortSignal.timeout(timeoutMs)])})
+   .catch(()=>{throw new Error(controller.signal.aborted?'Phiên đăng nhập đã thay đổi.':'Không kết nối được. Hãy kiểm tra mạng rồi thử lại.');})
    .finally(()=>requests.delete(controller));
+ }
+ function evidenceMime(name,type){
+  const expected={doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',xls:'application/vnd.ms-excel',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',ppt:'application/vnd.ms-powerpoint',pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',pdf:'application/pdf',jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',heic:'image/heic',heif:'image/heif'}[String(name).split('.').pop().toLowerCase()];
+  if(!expected)return null;
+  if(type===expected||type===''||type==='application/octet-stream')return expected;
+  if(expected==='image/jpeg'&&(type==='image/jpg'||type==='image/pjpeg'))return expected;
+  return null;
  }
  async function auth(path,body,token){
   const response=await network(URL+'/auth/v1/'+path,{method:body?'POST':'GET',headers:{apikey:KEY,'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});
@@ -91,14 +98,16 @@
   async upload(id,taskId,file){
    if(id!==actor?.id)throw new Error('Phiên đăng nhập đã thay đổi.');
    const version=generation;
-   const prepared=await api('',{action:'prepare-upload',taskId,input:{name:file.name,type:file.type,size:file.size},requestId:crypto.randomUUID()});
+   const mime=evidenceMime(file.name,file.type||'');
+   if(!mime)throw new Error('Tệp không đúng định dạng. Hãy chọn DOC, DOCX, XLS, XLSX, PPT, PPTX, PDF, JPG, PNG hoặc ảnh HEIC.');
+   const prepared=await api('',{action:'prepare-upload',taskId,input:{name:file.name,type:mime,size:file.size},requestId:crypto.randomUUID()});
    const target=new globalThis.URL(prepared.signedUrl,URL+'/storage/v1');
    if(target.origin!==URL||!target.pathname.startsWith('/storage/v1/object/upload/sign/'))throw new Error('Đường dẫn tải tệp không hợp lệ.');
    const data=new FormData();data.append('cacheControl','3600');data.append('',file);
-   const response=await network(target.href,{method:'PUT',body:data,headers:{apikey:KEY,'x-upsert':'false'}});
+   const response=await network(target.href,{method:'PUT',body:data,headers:{apikey:KEY,'x-upsert':'false'}},180000);
    if(!response.ok)throw new Error('Chưa tải được tệp minh chứng. Vui lòng thử lại.');
    if(version!==generation)throw new Error('Phiên đăng nhập đã thay đổi.');
-   return {storagePath:prepared.storagePath,originalName:file.name,mimeType:file.type,sizeBytes:file.size};
+   return {storagePath:prepared.storagePath,originalName:file.name,mimeType:mime,sizeBytes:file.size};
   },
   async download(id,fileId){
    if(id!==actor?.id)throw new Error('Phiên đăng nhập đã thay đổi.');

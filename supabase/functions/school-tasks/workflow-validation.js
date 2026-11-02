@@ -4,8 +4,18 @@ export const FILE_TYPES = Object.freeze({
  doc:'application/msword', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
  xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
  ppt:'application/vnd.ms-powerpoint', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',
- pdf:'application/pdf', jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png'
+ pdf:'application/pdf', jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png',
+ heic:'image/heic', heif:'image/heif'
 });
+export function declaredMime(name, type) {
+ if (typeof name !== 'string' || typeof type !== 'string') return null;
+ const extension = name.split('.').pop().toLowerCase();
+ const expected = FILE_TYPES[extension];
+ if (!expected) return null;
+ if (type === expected || type === '' || type === 'application/octet-stream') return expected;
+ if (expected === 'image/jpeg' && (type === 'image/jpg' || type === 'image/pjpeg')) return expected;
+ return null;
+}
 export const validDate = value => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)
  && Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0,10) === value;
 export const canRead = (actor,task) => Boolean(actor && task && (actor.role === 'bgh'
@@ -17,8 +27,7 @@ export function validateFile(input) {
  if (!input || typeof input !== 'object') return 'Thông tin tệp không hợp lệ.';
  const {name,type,size} = input;
  if (typeof name !== 'string' || !name.trim() || name.length > 255 || /[\x00-\x1f\/\\]/.test(name)) return 'Tên tệp không hợp lệ (tối đa 255 ký tự).';
- const extension = name.split('.').pop().toLowerCase();
- if (!FILE_TYPES[extension] || FILE_TYPES[extension] !== type) return 'Chỉ hỗ trợ DOC/DOCX/XLS/XLSX/PPT/PPTX/PDF/JPG/JPEG/PNG đúng loại tệp.';
+ if (!declaredMime(name, type)) return 'Chỉ hỗ trợ DOC/DOCX/XLS/XLSX/PPT/PPTX/PDF/JPG/JPEG/PNG/HEIC/HEIF đúng loại tệp.';
  if (!Number.isInteger(size) || size <= 0 || size > MAX_FILE_BYTES) return 'Mỗi tệp phải lớn hơn 0 và không quá 25 MB.';
  return null;
 }
@@ -60,6 +69,11 @@ export function matchesFileContent(bytes,name) {
  if (ext === 'pdf') return starts([37,80,68,70,45]) && new TextDecoder().decode(bytes.slice(-2048)).includes('%%EOF');
  if (ext === 'png') return starts([137,80,78,71,13,10,26,10]) && bytes.length >= 20 && new TextDecoder().decode(bytes.slice(-8,-4)) === 'IEND';
  if (ext === 'jpg' || ext === 'jpeg') return starts([255,216,255]) && bytes.at(-2) === 255 && bytes.at(-1) === 217;
+ if (ext === 'heic' || ext === 'heif') {
+  if (bytes.length < 12) return false;
+  const mark = new TextDecoder().decode(bytes.slice(4, 12));
+  return mark.startsWith('ftyp') && ['heic','heix','hevc','hevx','heim','heis','avci','mif1','msf1','heif'].includes(mark.slice(4));
+ }
  if (['doc','xls','ppt'].includes(ext)) {
   if (!starts([208,207,17,224,161,177,26,225])) return false;
   const text = new TextDecoder('utf-16le').decode(bytes);

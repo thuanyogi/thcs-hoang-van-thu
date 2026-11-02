@@ -39,8 +39,14 @@ test('trả lại cần lý do; chỉ trả lại mới được đổi hạn v�
  assert.ok(validateAction(teacher,pending,'review',{submissionId,decision:'approve'}).permission);
 });
 test('giới hạn tệp 25MB, MIME/extension khớp, tên không có path và số byte nguyên dương',async()=>{
- const {validateFile,MAX_FILE_BYTES,FILE_TYPES}=await domain;
+ const {validateFile,declaredMime,MAX_FILE_BYTES,FILE_TYPES}=await domain;
  for (const [extension,type] of Object.entries(FILE_TYPES)) assert.equal(validateFile({name:'minh-chung.'+extension,type,size:MAX_FILE_BYTES}),null);
+ assert.equal(validateFile({name:'a.pdf',type:'application/octet-stream',size:10}),null);
+ assert.equal(validateFile({name:'anh.jpg',type:'',size:10}),null);
+ assert.equal(validateFile({name:'anh.jpg',type:'image/jpg',size:10}),null);
+ assert.equal(declaredMime('a.pdf','application/octet-stream'),'application/pdf');
+ assert.equal(declaredMime('anh.heic',''),'image/heic');
+ assert.equal(declaredMime('a.pdf','text/plain'),null);
  for (const data of [{name:'a.pdf',type:'image/png',size:10},{name:'../a.pdf',type:'application/pdf',size:10},{name:'a.exe',type:'application/pdf',size:10},{name:'a.pdf',type:'application/pdf',size:MAX_FILE_BYTES+1},{name:'a.pdf',type:'application/pdf',size:1.5},{name:'a.pdf',type:'application/pdf',size:0}]) assert.ok(validateFile(data));
 });
 test('từ chối nội dung ngụy trang PDF/PNG/JPG/Office và ZIP không có cấu trúc OOXML',async()=>{
@@ -51,7 +57,10 @@ test('từ chối nội dung ngụy trang PDF/PNG/JPG/Office và ZIP không có 
  assert.equal(matchesFileContent(Uint8Array.from([255,216,255,224,255,217]),'a.jpg'),true);
  assert.equal(matchesFileContent(Uint8Array.from([255,216,255,224]),'a.jpg'),false);
  assert.equal(matchesFileContent(encode('PK\x03\x04word/document.xml [Content_Types].xml'),'a.docx'),false);
- for (const ext of ['doc','xls','ppt','png','xlsx','pptx']) assert.equal(matchesFileContent(encode('fake'),`a.${ext}`),false);
+ for (const ext of ['doc','xls','ppt','png','xlsx','pptx','heic']) assert.equal(matchesFileContent(encode('fake'),`a.${ext}`),false);
+ const heic = new Uint8Array(12); heic.set(encode('ftypheic'), 4);
+ assert.equal(matchesFileContent(heic,'anh.heic'),true);
+ assert.equal(matchesFileContent(heic,'anh.heif'),true);
 });
 test('lịch sử dùng lần nộp/lý do mới nhất, xóa lý do đang hiển thị sau khi nộp lại',async()=>{
  const {attachTaskHistory}=await import('../supabase/functions/school-tasks/task-history.js');

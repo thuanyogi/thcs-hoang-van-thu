@@ -61,7 +61,11 @@
       el.append(node('strong', task.title), node('small', person(task.assigneeId)), node('small', task.submittedAt ? `Đã gửi: ${date(task.submittedAt)}` : 'Chưa có thời điểm nộp báo cáo'));
       el.addEventListener('click', () => openTask(task, el)); return el;
     }));
-    if (!pending.length) $('pending-list').append(node('p', 'Không có báo cáo chờ xác nhận.', 'queue-empty'));
+    const panel = TaskListRules.pendingPanel(SchoolData.actor?.role);
+    $('pending-eyebrow').textContent = panel.eyebrow;
+    $('pending-heading').firstChild.textContent = panel.title;
+    $('pending-intro').textContent = panel.intro;
+    if (!pending.length) $('pending-list').append(node('p', SchoolData.actor?.role === 'teacher' ? 'Bạn chưa có báo cáo đang chờ người khác xác nhận.' : 'Không có báo cáo chờ xác nhận.', 'queue-empty'));
     $('pending-more').hidden = pending.length <= 5;
   }
   function matches(task, filter) {
@@ -90,6 +94,8 @@
     $('badge-total-count').textContent = shown.length;
     $('task-list-count').textContent = shown.length ? `${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, shown.length)} / ${shown.length} công việc` : '0 công việc';
     $('page-label').textContent = `${page} / ${pages}`; $('page-previous').disabled = page <= 1; $('page-next').disabled = page >= pages;
+    const empty = TaskListRules.emptyTaskCopy(view, filter, query, list.length);
+    $('empty-title').textContent = empty.title; $('empty-copy').textContent = empty.body;
     const visible = state === 'data' ? (shown.length ? 'data' : 'empty') : state === 'error' ? 'error' : state === 'loading' ? 'loading' : 'empty';
     ['data', 'empty', 'loading', 'error'].forEach(key => { $(`state-${key}`).hidden = visible !== key; });
   }
@@ -123,14 +129,18 @@
   $('notifications-close').addEventListener('click', () => { $('notification-popover').hidden = true; $('notifications-toggle').setAttribute('aria-expanded', 'false'); $('notifications-toggle').focus(); });
   document.addEventListener('keydown', event => { if (event.key === 'Escape') { $('notification-popover').hidden = true; $('notifications-toggle').setAttribute('aria-expanded', 'false'); } });
   $('task-search').addEventListener('input', () => { page = 1; renderRows(tasks()); });
-  $('task-status-filter').addEventListener('change', () => { page = 1; renderRows(tasks()); });
+  $('task-status-filter').addEventListener('change', () => {
+    page = 1;
+    if (view === 'overview' && TaskListRules.filterNeedsFullList($('task-status-filter').value)) view = 'tasks';
+    render();
+  });
   $('page-previous').addEventListener('click', () => { page--; renderRows(tasks()); }); $('page-next').addEventListener('click', () => { page++; renderRows(tasks()); });
   document.querySelectorAll('[data-create-task]').forEach(button => button.addEventListener('click', () => {
     if (!SchoolData.actor || state !== 'data') return;
     TaskForm.open({ actor: SchoolData.actor, store, setBusy(value) { document.dispatchEvent(new CustomEvent('school-form-busy', { detail: value })); }, onSaved(task) {
       render();
       const notification = task.notificationStatus === 'sent' ? ' Đã gửi thông báo Telegram.' : task.notificationStatus === 'failed' ? ' Gửi Telegram chưa thành công; công việc vẫn được lưu.' : ' Chưa xác định kết quả gửi Telegram; công việc vẫn được lưu.';
-      $('task-notice').textContent = `Đã lưu công việc “${task.title}” và đọc lại từ Supabase.${notification}`;
+      $('task-notice').textContent = `Đã lưu công việc “${task.title}”.${notification}`;
     } }, button);
   }));
   document.addEventListener('school-session', event => {

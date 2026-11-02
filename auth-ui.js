@@ -20,8 +20,8 @@
     email.disabled = password.disabled = locked;
     const title = document.getElementById('auth-heading');
     const description = document.getElementById('auth-description');
-    title.textContent = signedIn ? 'Tài khoản của bạn' : ({login:'Đăng nhập',signup:'Đăng ký tài khoản',link:'Đăng nhập qua email'})[mode];
-    description.textContent = signedIn ? 'Tài khoản chưa tải được quyền truy cập. Bạn có thể thử lại hoặc đăng xuất.' : ({login:'Sử dụng tài khoản đã được nhà trường cấp quyền.',signup:'Xác nhận email và chờ nhà trường cấp quyền truy cập.',link:'Chúng tôi sẽ gửi liên kết cho tài khoản hiện có.'})[mode];
+    title.textContent = signedIn ? 'Tài khoản của bạn' : ({login:'Đăng nhập',signup:'Đăng ký tài khoản',link:'Quên mật khẩu'})[mode];
+    description.textContent = signedIn ? 'Tài khoản chưa tải được quyền truy cập. Bạn có thể thử lại hoặc đăng xuất.' : ({login:'Sử dụng tài khoản đã được nhà trường cấp quyền.',signup:'Xác nhận email và chờ nhà trường cấp quyền truy cập.',link:'Nhập email tài khoản nhà trường đã cấp. Chúng tôi gửi liên kết đăng nhập, không tạo tài khoản mới.'})[mode];
     password.autocomplete = mode === 'signup' ? 'new-password' : 'current-password';
     password.required = mode !== 'link';
     password.closest('label').hidden = mode === 'link';

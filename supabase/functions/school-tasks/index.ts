@@ -1,5 +1,5 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.49.8';
-import { UUID, MAX_FILE_BYTES, validateAction, validateFile, matchesFileContent } from './workflow-validation.js';
+import { UUID, MAX_FILE_BYTES, validateAction, validateFile, declaredMime, matchesFileContent } from './workflow-validation.js';
 import { validateTask } from './validation.js';
 import { attachTaskHistory } from './task-history.js';
 const url = Deno.env.get('SUPABASE_URL')!;
@@ -131,6 +131,10 @@ Deno.serve(async req => {
   }
   if (action!=='create' && !UUID.test(body.taskId || '')) throw new ApiError(400,'Mã công việc không hợp lệ.');
   if (action==='prepare-upload') {
+   if (body.input && typeof body.input === 'object' && !Array.isArray(body.input)) {
+    const mime = declaredMime(body.input.name, body.input.type);
+    if (mime) body.input = {...body.input, type: mime};
+   }
    const error=validateFile(body.input);
    if (error) throw new ApiError(422,error,{evidence:error});
   }

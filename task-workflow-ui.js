@@ -48,7 +48,12 @@
       if (!await reload(attempt)) return;
       busy(false); render(attempt);
       const success = content.querySelector('#detail-status');
-      feedback(success, 'Đã lưu thay đổi và đọc lại công việc từ Supabase.');
+      const saved = attempt.detail.task;
+      const message = kind === 'start' ? 'Đã bắt đầu. Hãy nhập báo cáo kết quả.'
+        : kind === 'submit' ? (saved.requiresApproval ? 'Đã gửi báo cáo. Đang chờ xác nhận.' : 'Đã hoàn thành công việc.')
+        : kind === 'review' ? (saved.status === 'completed' ? 'Đã xác nhận kết quả.' : 'Đã trả lại báo cáo. Giáo viên có thể nộp lại.')
+        : 'Đã lưu thay đổi.';
+      feedback(success, message);
       document.dispatchEvent(new CustomEvent('school-tasks-updated'));
     } catch (error) {
       if (current === attempt) feedback(status, error.message || 'Chưa lưu được. Nội dung bạn nhập vẫn được giữ lại.', true);
@@ -58,8 +63,8 @@
     const el = section('Báo cáo kết quả'), form = document.createElement('form');
     const body = field('Nội dung báo cáo *', 'textarea', 'body', true); body.input.maxLength = 20000;
     const files = field(task.requiresEvidence ? 'Tệp minh chứng *' : 'Tệp minh chứng', 'file', 'evidence');
-    files.input.multiple = true; files.input.accept = '.doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf,.jpg,.jpeg,.png';
-    const note = text('small', 'DOC, DOCX, XLS, XLSX, PPT, PPTX, PDF, JPG, JPEG, PNG · tối đa 25 MB/tệp.', 'muted');
+    files.input.multiple = true; files.input.accept = '.doc,.docx,.xls,.xlsx,.ppt,.pptx,.pdf,.jpg,.jpeg,.png,.heic,.heif';
+    const note = text('small', 'DOC, DOCX, XLS, XLSX, PPT, PPTX, PDF, JPG, JPEG, PNG, HEIC, HEIF · tối đa 25 MB/tệp.', 'muted');
     const chosen = text('p', '', 'selected-files'), status = text('p', '', 'workflow-feedback'); status.setAttribute('role', 'status');
     const submit = button(task.requiresApproval ? 'Gửi báo cáo để xác nhận' : 'Hoàn thành công việc'); submit.type = 'submit';
     const uploaded = new Map(); let requestId = crypto.randomUUID(), previousPayload = '';
@@ -70,7 +75,7 @@
       const evidence = [...files.input.files];
       if (!body.input.value.trim()) { feedback(status, 'Vui lòng nhập nội dung báo cáo.', true); body.input.focus(); return; }
       if (task.requiresEvidence && !evidence.length) { feedback(status, 'Công việc này yêu cầu ít nhất một tệp minh chứng.', true); files.input.focus(); return; }
-      const invalid = evidence.find(file => file.size > 25 * 1024 * 1024 || !/\.(docx?|xlsx?|pptx?|pdf|jpe?g|png)$/i.test(file.name));
+      const invalid = evidence.find(file => file.size > 25 * 1024 * 1024 || !/\.(docx?|xlsx?|pptx?|pdf|jpe?g|png|heic|heif)$/i.test(file.name));
       if (invalid) { feedback(status, `Tệp “${invalid.name}” không đúng định dạng hoặc vượt 25 MB.`, true); return; }
       const signature = JSON.stringify([body.input.value.trim(), evidence.map(file => [file.name, file.size, file.lastModified])]);
       if (signature !== previousPayload) { requestId = crypto.randomUUID(); previousPayload = signature; }
@@ -158,9 +163,10 @@
     if (task.returnedReason && ['todo', 'in_progress'].includes(task.status)) { const returned = section('Báo cáo bị trả lại'); returned.classList.add('return-panel'); returned.append(text('p', task.returnedReason, 'report-body')); content.append(returned); }
     const actor = SchoolData.actor;
     if (task.assigneeId === actor.id && task.status === 'todo') {
-      const start = button('Bắt đầu thực hiện'); start.addEventListener('click', () => action(attempt, 'start', {}, status, attempt.startRequestId)); content.append(start);
+      const start = button('Bắt đầu thực hiện'); start.addEventListener('click', () => action(attempt, 'start', {}, status, attempt.startRequestId));
+      content.append(start, text('p', 'Bấm bắt đầu, rồi nhập báo cáo kết quả.', 'muted'));
     }
-    if (task.assigneeId === actor.id && ['todo', 'in_progress'].includes(task.status)) content.append(reportSection(attempt, task));
+    if (task.assigneeId === actor.id && task.status === 'in_progress') content.append(reportSection(attempt, task));
     const canReview = actor.role === 'bgh' && task.scope === 'school' || actor.role === 'head' && task.scope === 'department' && actor.department === task.department;
     if (canReview && task.status === 'pending_review') content.append(reviewSection(attempt, task, submissions));
     content.append(reports(attempt, submissions, files), history(events));
